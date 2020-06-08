@@ -3,6 +3,10 @@
 # ---- WorkerPool ----
 # Schedule jobs in parallel across multiple remote hosts using SSH.
 # Monitors hosts to make sure that they don't run out of memory.
+#
+# NOTE: see 'Usage' in README.md for notes on adjusting hosts'
+# /etc/ssh/sshd_config.
+#
 # TODO: better failed-job handling (don't just hang at end)
 #
 
@@ -186,9 +190,9 @@ class WorkerPool:
 
 
 if __name__ == '__main__':
-    WorkerPool = WorkerPool(clusterHosts={'rsg3.stanford.edu': 2})
+    WorkerPool = WorkerPool(clusterHosts={'rsg33': 32})
 
-    for i in range(10):
+    for i in range(128):
         WorkerPool.submit('uptime && sleep 2', '.', '.')
         #WorkerPool.submit('cat /tmp/nosuchfile', '.', '.')
 
