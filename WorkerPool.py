@@ -75,6 +75,11 @@ class Host:
         self.hostname = hostname
         self.pool = ThreadPoolExecutor(nSlots)
         self.workerPool = workerPool    # backreference to our owner WorkerPool
+
+        # check if the host is actually alive
+        if self._get_uptime()[0] != 0:
+            raise Exception("Host %s unreachable" % self.hostname)
+
         self.memWatchdog = threading.Thread(target=self._mem_watchdog,
                 args=(lowMemThreshGiB,), daemon=True)
         self.memWatchdog.start()
@@ -94,6 +99,13 @@ class Host:
             self.jobsSubmitted += 1
             self.workerPool.jobsSubmitted += 1
 
+    # useful for seeing if the host is alive, etc.
+    def _get_uptime(self):
+        uptimeCmd = ['ssh', self.hostname, '--', 'uptime']
+        res = subprocess.run(uptimeCmd, stdout=PIPE, stderr=PIPE)
+        retCode = res.returncode
+        retText = res.stdout.split(b'\n')[0].decode('utf-8')
+        return (retCode, retText)
 
     def _mem_watchdog(self, lowMemThreshGiB):
         # poll the host and make sure it has enough memory
@@ -159,6 +171,7 @@ class WorkerPool:
         self.cv = threading.Condition()
         self.progress = progress
 
+
     # internal WorkerPool-wide submission method.
     def _submit(self, job, wasRestarted):
         # Submits asynchronously to a node (round-robin).
@@ -190,7 +203,7 @@ class WorkerPool:
 
 
 if __name__ == '__main__':
-    WorkerPool = WorkerPool(clusterHosts={'rsg33': 32})
+    WorkerPool = WorkerPool(clusterHosts={'rsgvm0': 32})
 
     for i in range(128):
         WorkerPool.submit('uptime && sleep 2', '.', '.')
