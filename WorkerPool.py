@@ -11,7 +11,7 @@
 #
 
 from concurrent.futures import ThreadPoolExecutor
-from subprocess import PIPE
+from subprocess import PIPE, DEVNULL
 import random
 import shutil
 import signal
@@ -51,7 +51,7 @@ def getFittingString(s):
 def prettyPrintWithProgress(s, i, n):
     sys.stdout.write('\r' + ' '*getTerminalWidth() + '\r') # clear current line
     sys.stdout.write(getFittingString(s))
-    sys.stdout.write('\n')
+    sys.stdout.write('\r\n')
     sys.stdout.write(getProgressBar(i, n))
     sys.stdout.flush()
 
@@ -131,8 +131,11 @@ class Host:
     # wrapper for subprocess.Popen() that records the youngest job
     def _run_wrapper(self, job):
         self.youngestJob = job
-        sshCmd = ['ssh', self.hostname, '--', 'bash', '-c', str(job)]
-        p = subprocess.Popen(sshCmd, stdout=PIPE, stderr=PIPE)
+        sshCmd = ['ssh', '-tt', '-x', self.hostname, '--', 'bash', '-c',
+                str(job)]
+        # NOTE: stdin=DEVNULL is crucial for preventing weird terminal behavior
+        p = subprocess.Popen(sshCmd, stdin=DEVNULL, stdout=DEVNULL,
+                stderr=DEVNULL)
         job.pid = p.pid
         p.wait()
 
