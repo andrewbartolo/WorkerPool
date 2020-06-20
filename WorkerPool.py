@@ -73,6 +73,7 @@ class Job:
 class Host:
     def __init__(self, hostname, nSlots, workerPool, lowMemThreshGiB=5):
         self.hostname = hostname
+        self.nSlots = nSlots
         self.pool = ThreadPoolExecutor(nSlots)
         self.workerPool = workerPool    # backreference to our owner WorkerPool
 
@@ -167,6 +168,7 @@ class WorkerPool:
     # as values. progress prints a status bar.
     def __init__(self, clusterHosts={'localhost': 1}, progress=True):
         self.hosts = [Host(k, v, self) for k, v in clusterHosts.items()]
+        self.totalSlots = sum([h.nSlots for h in self.hosts])
         self.jobsSubmitted = 0
         self.jobsCompleted = 0
         self.final = False
@@ -177,8 +179,14 @@ class WorkerPool:
 
     # internal WorkerPool-wide submission method.
     def _submit(self, job, wasRestarted):
-        # Submits asynchronously to a node (round-robin).
-        host = self.hosts[self.jobsSubmitted % len(self.hosts)]
+        # Submits asynchronously to a host. (Scheduling: first, fill up the
+        # host, then round-robin amongst hosts.)
+
+        slotIndex = self.jobsSubmitted % self.totalSlots
+        slotCtr = 0
+        for host in self.hosts:
+            slotCtr += host.nSlots
+            if slotIndex < slotCtr: break
         host.submitToHost(job, wasRestarted)
 
 
