@@ -64,10 +64,16 @@ class Job:
         self.pid = -1
 
     def __str__(self):
+        # if sourceDir was supplied, create a pre-command to cd to it
+        cd = 'cd %s && ' % self.sourceDir if self.sourceDir else ''
+
         # NOTE: for fd redirects, we need to use 1>file, not just >file!
         # This is because command can end in a number, causing ambiguity
-        return '\'cd %s && %s 1>%s/out.log 2>%s/err.log\'' % (self.sourceDir,
-                self.command, self.outputDir, self.outputDir)
+        redirect = '1>%s/out.log 2>%s/err.log' % (self.outputDir,
+                self.outputDir) if self.outputDir else '1>/dev/null 2>/dev/null'
+
+        cmd = '\'%s%s %s\'' % (cd, self.command, redirect)
+        return cmd
 
 
 class Host:
@@ -143,7 +149,7 @@ class Host:
 
         ## begin critical region
         self.workerPool.cv.acquire()
-        if (p.returncode == 0):
+        if p.returncode == 0:
             # track completed jobs both per-host and WorkerPool-wide
             self.jobsCompleted += 1
             self.workerPool.jobsCompleted += 1
@@ -191,7 +197,7 @@ class WorkerPool:
 
 
     # external client-facing submission interface
-    def submit(self, command, sourceDir, outputDir):
+    def submit(self, command, sourceDir=None, outputDir=None):
         job = Job(command, sourceDir, outputDir)
         self._submit(job, wasRestarted=False)
 
